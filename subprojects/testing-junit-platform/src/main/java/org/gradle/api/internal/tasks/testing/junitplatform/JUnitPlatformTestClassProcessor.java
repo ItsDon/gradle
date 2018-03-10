@@ -21,7 +21,6 @@ import org.gradle.api.internal.tasks.testing.TestResultProcessor;
 import org.gradle.api.internal.tasks.testing.filter.TestSelectionMatcher;
 import org.gradle.api.internal.tasks.testing.junit.AbstractJUnitTestClassProcessor;
 import org.gradle.api.internal.tasks.testing.junit.TestClassExecutionListener;
-import org.gradle.internal.UncheckedException;
 import org.gradle.internal.actor.ActorFactory;
 import org.gradle.internal.id.IdGenerator;
 import org.gradle.internal.time.Clock;
@@ -43,7 +42,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static org.gradle.api.internal.tasks.testing.junitplatform.VintageTestNameAdapter.*;
+import static org.gradle.api.internal.tasks.testing.junitplatform.VintageTestNameAdapter.isVintageDynamicLeafTest;
+import static org.gradle.api.internal.tasks.testing.junitplatform.VintageTestNameAdapter.vintageDynamicClassName;
+import static org.gradle.api.internal.tasks.testing.junitplatform.VintageTestNameAdapter.vintageDynamicMethodName;
 import static org.junit.platform.launcher.EngineFilter.excludeEngines;
 import static org.junit.platform.launcher.EngineFilter.includeEngines;
 import static org.junit.platform.launcher.TagFilter.excludeTags;
@@ -59,7 +60,7 @@ public class JUnitPlatformTestClassProcessor extends AbstractJUnitTestClassProce
     }
 
     @Override
-    protected Action<String> createTestExecutor(TestResultProcessor threadSafeResultProcessor, TestClassExecutionListener threadSafeTestClassListener) {
+    protected Action<Class<?>> createTestExecutor(TestResultProcessor threadSafeResultProcessor, TestClassExecutionListener threadSafeTestClassListener) {
         resultProcessor = threadSafeResultProcessor;
         executionListener = threadSafeTestClassListener;
         testClassExecutor = new CollectAllTestClassesExecutor();
@@ -72,19 +73,13 @@ public class JUnitPlatformTestClassProcessor extends AbstractJUnitTestClassProce
         super.stop();
     }
 
-    @Override
-    public void stopNow() {
-        throw new UnsupportedOperationException("stopNow() should not be invoked on remote worker TestClassProcessor");
-    }
-
-    private class CollectAllTestClassesExecutor implements Action<String> {
+    private class CollectAllTestClassesExecutor implements Action<Class<?>> {
         private final List<Class<?>> testClasses = new ArrayList<>();
 
         @Override
-        public void execute(String testClassName) {
-            Class<?> klass = loadClass(testClassName);
-            if (isTopClass(klass)) {
-                testClasses.add(klass);
+        public void execute(Class<?> testClass) {
+            if (isTopClass(testClass)) {
+                testClasses.add(testClass);
             }
         }
 
@@ -98,15 +93,6 @@ public class JUnitPlatformTestClassProcessor extends AbstractJUnitTestClassProce
 
     private boolean isTopClass(Class<?> klass) {
         return klass.getEnclosingClass() == null;
-    }
-
-    private Class<?> loadClass(String className) {
-        try {
-            ClassLoader applicationClassloader = Thread.currentThread().getContextClassLoader();
-            return Class.forName(className, false, applicationClassloader);
-        } catch (ClassNotFoundException e) {
-            throw UncheckedException.throwAsUncheckedException(e);
-        }
     }
 
     private LauncherDiscoveryRequest createLauncherDiscoveryRequest(List<Class<?>> testClasses) {

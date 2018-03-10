@@ -20,10 +20,12 @@ import org.gradle.api.file.EmptyFileVisitor;
 import org.gradle.api.file.FileTree;
 import org.gradle.api.file.FileVisitDetails;
 import org.gradle.api.internal.tasks.testing.DefaultTestClassRunInfo;
+import org.gradle.api.internal.tasks.testing.PreviousFailedTestClassRunInfo;
 import org.gradle.api.internal.tasks.testing.TestClassProcessor;
 import org.gradle.api.internal.tasks.testing.TestClassRunInfo;
 
 import java.io.File;
+import java.util.Set;
 
 /**
  * The default test class scanner. Depending on the availability of a test framework detector,
@@ -33,16 +35,19 @@ public class DefaultTestClassScanner implements Runnable {
     private final FileTree candidateClassFiles;
     private final TestFrameworkDetector testFrameworkDetector;
     private final TestClassProcessor testClassProcessor;
+    private final Set<String> previousFailedTestClasses;
 
     public DefaultTestClassScanner(FileTree candidateClassFiles, TestFrameworkDetector testFrameworkDetector,
-                                   TestClassProcessor testClassProcessor) {
+                                   TestClassProcessor testClassProcessor, Set<String> previousFailedTestClasses) {
         this.candidateClassFiles = candidateClassFiles;
         this.testFrameworkDetector = testFrameworkDetector;
         this.testClassProcessor = testClassProcessor;
+        this.previousFailedTestClasses = previousFailedTestClasses;
     }
 
     @Override
     public void run() {
+        runPreviousFailedTestClasses();
         if (testFrameworkDetector == null) {
             filenameScan();
         } else {
@@ -50,10 +55,16 @@ public class DefaultTestClassScanner implements Runnable {
         }
     }
 
+    private void runPreviousFailedTestClasses() {
+        for (String testClass : previousFailedTestClasses) {
+            testClassProcessor.processTestClass(new PreviousFailedTestClassRunInfo(testClass));
+        }
+    }
+
     private void detectionScan() {
         testFrameworkDetector.startDetection(testClassProcessor);
         candidateClassFiles.visit(new ClassFileVisitor() {
-            public void visitClassFile(FileVisitDetails fileDetails) {
+            public void visitClassFile(String className, FileVisitDetails fileDetails) {
                 testFrameworkDetector.processTestClass(fileDetails.getFile());
             }
         });
@@ -61,8 +72,7 @@ public class DefaultTestClassScanner implements Runnable {
 
     private void filenameScan() {
         candidateClassFiles.visit(new ClassFileVisitor() {
-            public void visitClassFile(FileVisitDetails fileDetails) {
-                String className = fileDetails.getRelativePath().getPathString().replaceAll("\\.class", "").replace('/', '.');
+            public void visitClassFile(String className, FileVisitDetails fileDetails) {
                 TestClassRunInfo testClass = new DefaultTestClassRunInfo(className);
                 testClassProcessor.processTestClass(testClass);
             }
@@ -74,11 +84,20 @@ public class DefaultTestClassScanner implements Runnable {
         public void visitFile(FileVisitDetails fileDetails) {
             final File file = fileDetails.getFile();
 
-            if (file.getAbsolutePath().endsWith(".class")) {
-                visitClassFile(fileDetails);
+            if (!file.getAbsolutePath().endsWith(".class")) {
+                return;
+            }
+
+            String className = getClassName(fileDetails);
+            if (!previousFailedTestClasses.contains(className)) {
+                visitClassFile(className, fileDetails);
             }
         }
 
-        public abstract void visitClassFile(FileVisitDetails fileDetails);
+        public abstract void visitClassFile(String className, FileVisitDetails fileDetails);
+
+        private String getClassName(FileVisitDetails fileDetails) {
+            return fileDetails.getRelativePath().getPathString().replaceAll("\\.class", "").replace('/', '.');
+        }
     }
 }

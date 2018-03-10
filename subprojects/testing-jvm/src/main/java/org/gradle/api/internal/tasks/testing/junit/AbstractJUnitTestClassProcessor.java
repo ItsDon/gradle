@@ -17,24 +17,21 @@
 package org.gradle.api.internal.tasks.testing.junit;
 
 import org.gradle.api.Action;
+import org.gradle.api.internal.tasks.testing.AbstractWorkerTestClassProcessor;
 import org.gradle.api.internal.tasks.testing.TestClassProcessor;
-import org.gradle.api.internal.tasks.testing.TestClassRunInfo;
 import org.gradle.api.internal.tasks.testing.TestResultProcessor;
 import org.gradle.api.internal.tasks.testing.results.AttachParentTestResultProcessor;
 import org.gradle.internal.actor.Actor;
 import org.gradle.internal.actor.ActorFactory;
 import org.gradle.internal.id.IdGenerator;
 import org.gradle.internal.time.Clock;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-public abstract class AbstractJUnitTestClassProcessor<T extends JUnitSpec> implements TestClassProcessor {
-    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractJUnitTestClassProcessor.class);
+public abstract class AbstractJUnitTestClassProcessor<T extends JUnitSpec> extends AbstractWorkerTestClassProcessor implements TestClassProcessor {
     protected final T spec;
     protected final IdGenerator<?> idGenerator;
     protected final Clock clock;
     private final ActorFactory actorFactory;
-    private Action<String> executor;
+    private Action<Class<?>> executor;
     private Actor resultProcessorActor;
 
     public AbstractJUnitTestClassProcessor(T spec, IdGenerator<?> idGenerator, ActorFactory actorFactory, Clock clock) {
@@ -58,12 +55,11 @@ public abstract class AbstractJUnitTestClassProcessor<T extends JUnitSpec> imple
         executor = createTestExecutor(threadSafeResultProcessor, threadSafeTestClassListener);
     }
 
-    protected abstract Action<String> createTestExecutor(TestResultProcessor threadSafeResultProcessor, TestClassExecutionListener threadSafeTestClassListener);
+    protected abstract Action<Class<?>> createTestExecutor(TestResultProcessor threadSafeResultProcessor, TestClassExecutionListener threadSafeTestClassListener);
 
     @Override
-    public void processTestClass(TestClassRunInfo testClass) {
-        LOGGER.debug("Executing test class {}", testClass.getTestClassName());
-        executor.execute(testClass.getTestClassName());
+    public void processTestClass(Class<?> testClass) {
+        executor.execute(testClass);
     }
 
     @Override

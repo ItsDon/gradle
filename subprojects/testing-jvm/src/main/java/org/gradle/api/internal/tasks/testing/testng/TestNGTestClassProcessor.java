@@ -17,8 +17,7 @@
 package org.gradle.api.internal.tasks.testing.testng;
 
 import org.gradle.api.GradleException;
-import org.gradle.api.internal.tasks.testing.TestClassProcessor;
-import org.gradle.api.internal.tasks.testing.TestClassRunInfo;
+import org.gradle.api.internal.tasks.testing.AbstractWorkerTestClassProcessor;
 import org.gradle.api.internal.tasks.testing.TestResultProcessor;
 import org.gradle.api.internal.tasks.testing.filter.TestSelectionMatcher;
 import org.gradle.api.tasks.testing.testng.TestNGOptions;
@@ -43,7 +42,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
-public class TestNGTestClassProcessor implements TestClassProcessor {
+public class TestNGTestClassProcessor extends AbstractWorkerTestClassProcessor {
     private final List<Class<?>> testClasses = new ArrayList<Class<?>>();
     private final File testReportDir;
     private final TestNGSpec options;
@@ -73,13 +72,8 @@ public class TestNGTestClassProcessor implements TestClassProcessor {
     }
 
     @Override
-    public void processTestClass(TestClassRunInfo testClass) {
-        // TODO - do this inside some 'testng' suite, so that failures and logging are attached to 'testng' rather than some 'test worker'
-        try {
-            testClasses.add(applicationClassLoader.loadClass(testClass.getTestClassName()));
-        } catch (Throwable e) {
-            throw new GradleException(String.format("Could not load test class '%s'.", testClass.getTestClassName()), e);
-        }
+    public void processTestClass(Class testClass) {
+        testClasses.add(testClass);
     }
 
     @Override
@@ -89,11 +83,6 @@ public class TestNGTestClassProcessor implements TestClassProcessor {
         } finally {
             resultProcessorActor.stop();
         }
-    }
-
-    @Override
-    public void stopNow() {
-        throw new UnsupportedOperationException("stopNow() should not be invoked on remote worker TestClassProcessor");
     }
 
     private void runTests() {

@@ -28,7 +28,6 @@ import org.gradle.api.internal.tasks.testing.TestResultProcessor;
 import org.gradle.api.internal.tasks.testing.WorkerTestClassProcessorFactory;
 import org.gradle.api.internal.tasks.testing.processors.MaxNParallelTestClassProcessor;
 import org.gradle.api.internal.tasks.testing.processors.RestartEveryNTestClassProcessor;
-import org.gradle.api.internal.tasks.testing.processors.RunPreviousFailedFirstTestClassProcessor;
 import org.gradle.api.internal.tasks.testing.processors.TestMainAction;
 import org.gradle.api.internal.tasks.testing.worker.ForkingTestClassProcessor;
 import org.gradle.api.logging.Logger;
@@ -90,8 +89,7 @@ public class DefaultTestExecuter implements TestExecuter<JvmTestExecutionSpec> {
                 return new RestartEveryNTestClassProcessor(forkingProcessorFactory, testExecutionSpec.getForkEvery());
             }
         };
-        processor = new RunPreviousFailedFirstTestClassProcessor(testExecutionSpec.getPreviousFailedTestClasses(),
-            new MaxNParallelTestClassProcessor(getMaxParallelForks(testExecutionSpec), reforkingProcessorFactory, actorFactory));
+        processor = new MaxNParallelTestClassProcessor(getMaxParallelForks(testExecutionSpec), reforkingProcessorFactory, actorFactory);
 
         final FileTree testClassFiles = testExecutionSpec.getCandidateClassFiles();
 
@@ -100,9 +98,9 @@ public class DefaultTestExecuter implements TestExecuter<JvmTestExecutionSpec> {
             TestFrameworkDetector testFrameworkDetector = testFramework.getDetector();
             testFrameworkDetector.setTestClasses(testExecutionSpec.getTestClassesDirs().getFiles());
             testFrameworkDetector.setTestClasspath(classpath);
-            detector = new DefaultTestClassScanner(testClassFiles, testFrameworkDetector, processor);
+            detector = new DefaultTestClassScanner(testClassFiles, testFrameworkDetector, processor, testExecutionSpec.getPreviousFailedTestClasses());
         } else {
-            detector = new DefaultTestClassScanner(testClassFiles, null, processor);
+            detector = new DefaultTestClassScanner(testClassFiles, null, processor, testExecutionSpec.getPreviousFailedTestClasses());
         }
 
         final Object testTaskOperationId = buildOperationExecutor.getCurrentOperation().getParentId();

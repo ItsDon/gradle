@@ -1,5 +1,5 @@
 /*
- * Copyright 2009 the original author or authors.
+ * Copyright 2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,23 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.gradle.api.internal.tasks.testing;
 
-import org.apache.commons.lang.StringUtils;
-
-public class DefaultTestClassRunInfo implements TestClassRunInfo {
-    private String testClassName;
-
-    public DefaultTestClassRunInfo(String testClassName) {
-        if (StringUtils.isEmpty(testClassName)) {
-            throw new IllegalArgumentException("testClassName is empty!");
-        }
-
-        this.testClassName = testClassName;
-    }
-
-    @Override
-    public String getTestClassName() {
-        return testClassName;
+public class PreviousFailedTestClassRunInfo extends DefaultTestClassRunInfo{
+    public PreviousFailedTestClassRunInfo(String testClassName) {
+        super(testClassName);
     }
 }

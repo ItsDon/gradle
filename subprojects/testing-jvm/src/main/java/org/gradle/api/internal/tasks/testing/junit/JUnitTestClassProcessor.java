@@ -28,13 +28,8 @@ public class JUnitTestClassProcessor extends AbstractJUnitTestClassProcessor<JUn
     }
 
     @Override
-    protected Action<String> createTestExecutor(TestResultProcessor threadSafeResultProcessor, TestClassExecutionListener threadSafeTestClassListener) {
+    protected Action<Class<?>> createTestExecutor(TestResultProcessor threadSafeResultProcessor, TestClassExecutionListener threadSafeTestClassListener) {
         JUnitTestEventAdapter junitEventAdapter = new JUnitTestEventAdapter(threadSafeResultProcessor, clock, idGenerator);
         return new JUnitTestClassExecutor(Thread.currentThread().getContextClassLoader(), spec, junitEventAdapter, threadSafeTestClassListener);
-    }
-
-    @Override
-    public void stopNow() {
-        throw new UnsupportedOperationException("stopNow() should not be invoked on remote worker TestClassProcessor");
     }
 }
